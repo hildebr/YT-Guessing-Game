@@ -1,0 +1,10 @@
+#logger {
+    background-color: beige;
+    overflow: auto;
+    white-space: pre;
+    max-height: 200px;
+}
+
+.fishActive {
+    background-color: greenyellow;
+}
