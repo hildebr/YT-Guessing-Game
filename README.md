@@ -31,8 +31,3 @@ Additionally, a YouTube API key is required. This key is used to fetch videos
 and their view counts. Please insert your personal API key at the top of the
 __script.js__ file. If you don't have a key yet, follow [these instructions](https://www.slickremix.com/docs/get-api-key-for-youtube/) to
 generate it.
-
-### Known Issues
-
-When starting a new game, the popup used to define playlist ID and game mode
-cannot be committed with the _ENTER_ key. Use the designated _OK_ button instead.

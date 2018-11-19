@@ -54,26 +54,19 @@ $player2Fish.click(toggleFish);
  */
 function newGamePopup() {
     if (API_KEY === "") {
-        bootbox.alert("Unable to collect videos: No YouTube API key provided. Please follow the instructions in the README file.");
+        alert("<b>Unable to start a new game:</b> No YouTube API key provided. Please follow the instructions in the README file.");
         return;
     }
 
     bootbox.confirm({
-        message: "<form id='newGameForm' action=''>\
-    Playlist ID: <br> \
-    <input type='text' name='playlistID' size='35' value=''/><br>\
-    Ruleset: <br>\
-    <input type='radio' name='rules' value='classic' checked> Classic <input type='radio' name='rules' value='redux'> Redux\
-    </form>",
-        callback: function (result) {
-            console.log(result);
-            if (result) {
-                // This operation transforms the jQuery form reference into a json.
-                let newGameParams = $('#newGameForm').serializeArray().reduce(function (obj, item) {
-                    obj[item.name] = item.value;
-                    return obj;
-                }, {});
-                initGame(newGameParams);
+        message: "Playlist ID: <br> \
+                  <input type='text' id='playlistID' size='35' value=''/><br>\
+                  Ruleset: <br>\
+                  <input type='radio' id='rules' name='rules' value='classic' checked> Classic \
+                  <input type='radio' id='rules' name='rules' value='redux'> Redux",
+        callback: function (okPressed) {
+            if (okPressed) {
+                initGame($('#playlistID').val(), $('#rules').val() === 'redux');
             }
         }
     });
@@ -82,13 +75,12 @@ function newGamePopup() {
 /**
  * Resets all variables and starts a new game with the given parameters.
  *
- * @param {json} newGameParams Contains user specified parameters.
+ * @param {string} playlistID Specifies which playlist will be loaded.
+ * @param {boolean} isRedux   Specifies, whether the redux game mode was chosen.
  */
-function initGame(newGameParams) {
-    logInfo("Initializing a new game...");
-    console.log(newGameParams);
-
+function initGame(playlistID, isRedux) {
     // reset dynamic variables
+    $logger.text('');
     videoIds = [];
     currentVideoIndex = 0;
     player1Score = 0;
@@ -97,7 +89,7 @@ function initGame(newGameParams) {
     $player2Score.text(0);
     $player1Input.val('');
     $player2Input.val('');
-    useReduxRules = false;
+    useReduxRules = isRedux;
 
     // reset buttons to default state
     $showResult.prop("disabled", false);
@@ -108,8 +100,9 @@ function initGame(newGameParams) {
     $player1Input.prop("disabled", false);
     $player2Input.prop("disabled", false);
 
-    loadPlaylist(newGameParams['playlistID'], null);
-    // If no videos are available, the GET request failed.
+    logInfo("Initializing a new game...");
+    loadPlaylist(playlistID, null);
+    // If no videos were loaded, the GET request failed.
     if (videoIds.length === 0) {
         // Error handling should be done in the #loadPlaylist function, so we just return at this point.
         return;
@@ -117,10 +110,6 @@ function initGame(newGameParams) {
 
     logInfo("Playlist found! Game ready with " + videoIds.length + " available videos.");
     embedVideo(videoIds[0]);
-
-    if (newGameParams['rules'] === 'redux') {
-        useReduxRules = true;
-    }
 }
 
 /**
@@ -170,7 +159,7 @@ function loadPlaylist(playlistId, pageToken) {
                     errorMessage += "I haven't encountered this code in my testing, please submit a bug report.";
             }
 
-            bootbox.alert(errorMessage);
+            alert(errorMessage);
         }
     });
 }
@@ -180,7 +169,7 @@ function loadPlaylist(playlistId, pageToken) {
  */
 function nextVideo() {
     if (currentVideoIndex === videoIds.length - 1) {
-        logInfo("You've reached the end of the playlist. Thanks for playing!");
+        alert("You've reached the end of the playlist. Thanks for playing!");
         return;
     }
 
@@ -201,29 +190,29 @@ function nextVideo() {
 function showResult() {
     var flatValue = $flat.val();
     if (flatValue !== "" && isNaN(parseInt(flatValue))) {
-        logInfo("The flat bonus input field does not contain a valid number.");
+        alert("The flat bonus input field does not contain a valid number.");
         return;
     }
     var multiValue = $multi.val();
     if (multiValue !== "" && isNaN(parseInt(multiValue))) {
-        logInfo("The multiplier input field does not contain a valid number.");
+        alert("The multiplier input field does not contain a valid number.");
         return;
     }
 
     let player1InputVal = parseInt($player1Input.val());
     if (isNaN(player1InputVal)) {
-        logInfo("Guess of Player 1 is not a valid number.");
+        alert("Guess of Player 1 is not a valid number.");
         return;
     }
 
     let player2InputVal = parseInt($player2Input.val());
     if (isNaN(player2InputVal)) {
-        logInfo("Guess of Player 2 is not a valid number.");
+        alert("Guess of Player 2 is not a valid number.");
         return;
     }
 
     if (player1InputVal === player2InputVal) {
-        logInfo("Players mustn't make the same guess!");
+        alert("Players mustn't make the same guess!");
         return;
     }
 
@@ -238,7 +227,7 @@ function showResult() {
         },
         success: function (data) {
             let viewCount = parseFloat(data.items[0].statistics.viewCount);
-            logInfo("The current video has " + viewCount.toLocaleString('en') + " views.");
+            logInfo("The current video has <b>" + viewCount.toLocaleString('en') + "</b> views.");
 
             let player1Diff = Math.abs(player1InputVal - viewCount);
             let player2Diff = Math.abs(player2InputVal - viewCount);
@@ -271,7 +260,7 @@ function scorePlayer1(inputVal, viewCount) {
         $player1Fish.prop('disabled', true);
     }
 
-    logInfo("Player 1 scores " + pointsToAdd + " point(s)!");
+    logInfo("Player 1 scores <b>" + pointsToAdd + "</b> point(s)!");
     player1Score += pointsToAdd;
     $player1Score.text(player1Score);
 }
@@ -291,7 +280,7 @@ function scorePlayer2(inputVal, viewCount) {
         $player2Fish.prop('disabled', true);
     }
 
-    logInfo("Player 2 scores " + pointsToAdd + " point(s)!");
+    logInfo("Player 2 scores <b>" + pointsToAdd + "</b> point(s)!");
     player2Score += pointsToAdd;
     $player2Score.text(player2Score);
 }
@@ -376,10 +365,19 @@ function embedVideo(videoId) {
 }
 
 /**
- * Adds 'toBeLogged' at the top of the info-log.
+ * Adds the given string at the top of the logger div.
  *
  * @param {string} toBeLogged The string to be displayed in the logger area.
  */
 function logInfo(toBeLogged) {
-    $logger.text(toBeLogged + " \n" + $logger.text());
+    $logger.html(toBeLogged + " \n" + $logger.html());
+}
+
+/**
+ * Alerts the user with the given string.
+ *
+ * @param {string} message The message to display as an alert.
+ */
+function alert(message) {
+    bootbox.alert(message);
 }
