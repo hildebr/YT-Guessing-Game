@@ -7,41 +7,60 @@
 <body>
 <p>
     <button class="btn" id="newGame">New Game</button>
-</p>
-<p>
-    <iframe id="videoPlayer" width="800" height="450"></iframe>
-</p>
-<p>
-    <button class="btn" id="previousVideo" disabled>Previous video</button>
-    <button class="btn" id="showResult" disabled>Show result</button>
+    <button class="btn" id="showResult" disabled>Reveal view count</button>
     <button class="btn" id="nextVideo" disabled>Next video</button>
 </p>
 <p>
-    <label for="timecodeBonus">Timecode (+1)</label>
-    <input type="checkbox" id="timecodeBonus" disabled>
-    <label for="germanBonus">German (+2)</label>
-    <input type="checkbox" id="germanBonus" disabled>
-    <label for="phoneBonus">Phone number (x2)</label>
-    <input type="checkbox" id="phoneBonus" disabled>
+    <iframe id="videoPlayer" width="1024" height="576"></iframe>
 </p>
-<p>
-    <button class="btn" id="player1Fish" disabled>Player1 FISHCARD</button>
-    <button class="btn" id="player2Fish" disabled>Player2 FISHCARD</button>
-</p>
-<p>
-    <label for="player1Input">Player1 Guess:</label>
-    <input id="player1Input" disabled/>
-    <label for="player2Input">Player2 Guess:</label>
-    <input id="player2Input" disabled/>
-</p>
-<p>
-    <label for="player1Score">Player1 Score:</label>
-    <label id="player1Score"></label>
-</p>
-<p>
-    <label for="player2Score">Player2 Score: </label>
-    <label id="player2Score"></label>
-</p>
+<table width="1024">
+    <tr>
+        <th></th>
+        <th style="text-align : center"><label for="flat">Flat Bonus</label></th>
+        <th style="text-align : center"><label for="multi">Multiplier</label></th>
+        <th></th>
+    </tr>
+    <tr>
+        <th></th>
+        <th style="text-align : center"><input id="flat" disabled></th>
+        <th style="text-align : center"><input id="multi" disabled></th>
+        <th></th>
+    </tr>
+    <tr>
+        <th style="text-align: left">
+            <label for="player1Input">Player1 Guess:</label><br>
+            <input id="player1Input" disabled/>
+        </th>
+        <th></th>
+        <th></th>
+        <th style="text-align: right">
+            <label for="player2Input">Player2 Guess:</label><br>
+            <input id="player2Input" disabled/>
+        </th>
+    </tr>
+    <tr>
+        <th style="text-align: left">
+            <label for="player1Score">Player1 Score: </label><br>
+            <label id="player1Score">0</label>
+        </th>
+        <th></th>
+        <th></th>
+        <th style="text-align: right">
+            <label for="player2Score">Player2 Score: </label><br>
+            <label id="player2Score">0</label>
+        </th>
+    </tr>
+    <tr>
+        <th style="text-align: left">
+            <button class="btn" id="player1Fish" disabled>Player1 Fishcard</button>
+        </th>
+        <th></th>
+        <th></th>
+        <th style="text-align: right">
+            <button class="btn" id="player2Fish" disabled>Player2 Fishcard</button>
+        </th>
+    </tr>
+</table>
 <p>
 <div id="logger"></div>
 </body>

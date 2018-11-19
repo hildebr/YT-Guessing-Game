@@ -2,12 +2,12 @@
 let API_KEY = "";
 
 /**
- * {boolean} Describes, whether the current game uses the classic ruleset.
+ * {boolean} A flag that determines how many points are awarded.
  */
-var usesClassicRules;
+var useReduxRules;
 
 /**
- * {array} Holds all video IDs of the loaded playlist.
+ * {array} Holds YouTube video IDs. They will be used to load their corresponding videos to guess their view counts.
  */
 var videoIds;
 
@@ -29,13 +29,11 @@ var player2Score;
 // jQuery variables
 let $newGame = $('#newGame');
 let $videoPlayer = $('#videoPlayer');
-let $previousVideo = $("#previousVideo");
 let $nextVideo = $("#nextVideo");
 let $showResult = $('#showResult');
 let $logger = $('#logger');
-let $germanBonus = $('#germanBonus');
-let $phoneBonus = $('#phoneBonus');
-let $timecodeBonus = $('#timecodeBonus');
+let $flat = $('#flat');
+let $multi = $('#multi');
 let $player1Fish = $('#player1Fish');
 let $player2Fish = $('#player2Fish');
 let $player1Input = $('#player1Input');
@@ -45,28 +43,32 @@ let $player2Score = $('#player2Score');
 
 // button click behavior
 $newGame.click(newGamePopup);
-$previousVideo.click(previousVideo);
 $nextVideo.click(nextVideo);
 $showResult.click(showResult);
 $player1Fish.click(toggleFish);
 $player2Fish.click(toggleFish);
 
 /**
- * Creates a popup for the user to set parameters for a new game.
+ * Creates a popup for the user to set parameters for a new game. These parameters will be given to {@link initGame}
+ * to initialize a new game.
  */
 function newGamePopup() {
     if (API_KEY === "") {
-        bootbox.alert("No YouTube API key provided. Please navigate to the 'script.js' and insert your key into the 'API_KEY' variable. If you don't have a key yet, follow the instructions at https://www.slickremix.com/docs/get-api-key-for-youtube/");
+        bootbox.alert("Unable to collect videos: No YouTube API key provided. Please follow the instructions in the README file.");
         return;
     }
 
     bootbox.confirm({
         message: "<form id='newGameForm' action=''>\
-    Playlist ID: <input type='text' name='playlistID' size='35' value='PL3XavGDgTyT2jiNySCwNBh6Xl04ZvPqfV'/><br/>\
-    Classic ruleset: <input type='checkbox' name='classicRules'/>\
+    Playlist ID: <br> \
+    <input type='text' name='playlistID' size='35' value=''/><br>\
+    Ruleset: <br>\
+    <input type='radio' name='rules' value='classic' checked> Classic <input type='radio' name='rules' value='redux'> Redux\
     </form>",
         callback: function (result) {
+            console.log(result);
             if (result) {
+                // This operation transforms the jQuery form reference into a json.
                 let newGameParams = $('#newGameForm').serializeArray().reduce(function (obj, item) {
                     obj[item.name] = item.value;
                     return obj;
@@ -78,57 +80,58 @@ function newGamePopup() {
 }
 
 /**
- * Resets all variables and starts a new game.
+ * Resets all variables and starts a new game with the given parameters.
  *
- * @param {json} newGameParams Contains all new game options that users can specify.
+ * @param {json} newGameParams Contains user specified parameters.
  */
 function initGame(newGameParams) {
-    logInfo("Initializing a new game...")
+    logInfo("Initializing a new game...");
+    console.log(newGameParams);
 
     // reset dynamic variables
     videoIds = [];
     currentVideoIndex = 0;
     player1Score = 0;
     player2Score = 0;
-    $player1Input.val('');
-    $player2Input.val('');
     $player1Score.text(0);
     $player2Score.text(0);
-    usesClassicRules = false;
+    $player1Input.val('');
+    $player2Input.val('');
+    useReduxRules = false;
 
-    // reset buttons
-    $previousVideo.prop("disabled", false);
+    // reset buttons to default state
     $showResult.prop("disabled", false);
-    $nextVideo.prop("disabled", false);
-    $timecodeBonus.prop("disabled", false);
-    $germanBonus.prop("disabled", false);
-    $phoneBonus.prop("disabled", false);
+    $flat.prop("disabled", false);
+    $multi.prop("disabled", false);
     $player1Fish.prop("disabled", false);
     $player2Fish.prop("disabled", false);
     $player1Input.prop("disabled", false);
     $player2Input.prop("disabled", false);
 
     loadPlaylist(newGameParams['playlistID'], null);
+    // If no videos are available, the GET request failed.
     if (videoIds.length === 0) {
-        logInfo("Unable to start a new game: The given playlist ID is invalid.");
+        // Error handling should be done in the #loadPlaylist function, so we just return at this point.
         return;
     }
 
     logInfo("Playlist found! Game ready with " + videoIds.length + " available videos.");
     embedVideo(videoIds[0]);
 
-    if (newGameParams['classicRules'] === 'on') {
-        usesClassicRules = true;
+    if (newGameParams['rules'] === 'redux') {
+        useReduxRules = true;
     }
 }
 
 /**
- * Sends a GET request to the YouTube playlist API. If successful, the video IDs contained in the response will be
- * added to {@link videoIds}. If the response has a {@code nextPageToken}, it will be used in a recursive call
- * in order to load the IDs of every other page of the playlist.
+ * Sends a GET request to the YouTube playlist API. If the given playlist ID is valid, its contained videos will be
+ * stored in {@link videoIds}.
  *
- * @param playlistId A string that is a YouTube playlist ID.
- * @param pageToken  An integer that defines which page will be requested. If null, page 1 will be requested.
+ * If the API response has a {@code nextPageToken}, it will be used in a recursive call in order to load the IDs of
+ * every other page of the playlist.
+ *
+ * @param {string} playlistId A string that should be a valid YouTube playlist ID.
+ * @param {number} pageToken  An integer that defines which page will be requested. If null, page 1 will be requested.
  */
 function loadPlaylist(playlistId, pageToken) {
     $.ajax({
@@ -151,42 +154,43 @@ function loadPlaylist(playlistId, pageToken) {
             if (nextPageToken != null) {
                 loadPlaylist(playlistId, nextPageToken);
             }
+        },
+        error: function (data) {
+            let statusCode = data.status;
+            var errorMessage = "Error: YouTube API request returned status code <b>" + statusCode + "</b>.<br>";
+
+            switch (statusCode) {
+                case 400:
+                    errorMessage += "Make sure your YouTube API key is valid.";
+                    break;
+                case 404:
+                    errorMessage += "Make sure your playlist ID is valid.";
+                    break;
+                default:
+                    errorMessage += "I haven't encountered this code in my testing, please submit a bug report.";
+            }
+
+            bootbox.alert(errorMessage);
         }
     });
 }
 
 /**
- * Loads the previous playlist video into the embedded player.
- */
-function previousVideo() {
-    if (currentVideoIndex === 0) {
-        logInfo("Can't load previous video: Already playing the first video.");
-        return;
-    }
-
-    embedVideo(videoIds[--currentVideoIndex]);
-    $showResult.prop("disabled", false);
-    $timecodeBonus.prop('checked', false);
-    $germanBonus.prop('checked', false);
-    $phoneBonus.prop('checked', false);
-    $player1Input.val('');
-    $player2Input.val('');
-}
-
-/**
- * Loads the next playlist video into the embedded player.
+ * Loads the next video into the embedded player.
  */
 function nextVideo() {
     if (currentVideoIndex === videoIds.length - 1) {
-        logInfo("Can't load next video: Already playing the last video.");
+        logInfo("You've reached the end of the playlist. Thanks for playing!");
         return;
     }
 
     embedVideo(videoIds[++currentVideoIndex]);
+
+    // reset UI for a new round
     $showResult.prop('disabled', false);
-    $timecodeBonus.prop('checked', false);
-    $germanBonus.prop('checked', false);
-    $phoneBonus.prop('checked', false);
+    $nextVideo.prop('disabled', true);
+    $flat.val('');
+    $multi.val('');
     $player1Input.val('');
     $player2Input.val('');
 }
@@ -195,16 +199,26 @@ function nextVideo() {
  * Shows the result for the current round and calculates points for the winner.
  */
 function showResult() {
-    let player1InputVal = parseInt($player1Input.val());
-    let player2InputVal = parseInt($player2Input.val());
-
-    if (isNaN(player1InputVal)) {
-        logInfo("Guess of Player 1 is not a number.");
+    var flatValue = $flat.val();
+    if (flatValue !== "" && isNaN(parseInt(flatValue))) {
+        logInfo("The flat bonus input field does not contain a valid number.");
+        return;
+    }
+    var multiValue = $multi.val();
+    if (multiValue !== "" && isNaN(parseInt(multiValue))) {
+        logInfo("The multiplier input field does not contain a valid number.");
         return;
     }
 
+    let player1InputVal = parseInt($player1Input.val());
+    if (isNaN(player1InputVal)) {
+        logInfo("Guess of Player 1 is not a valid number.");
+        return;
+    }
+
+    let player2InputVal = parseInt($player2Input.val());
     if (isNaN(player2InputVal)) {
-        logInfo("Guess of Player 2 is not a number.");
+        logInfo("Guess of Player 2 is not a valid number.");
         return;
     }
 
@@ -213,50 +227,31 @@ function showResult() {
         return;
     }
 
-    let currentId = videoIds[currentVideoIndex];
-
     $.ajax({
         url: 'https://www.googleapis.com/youtube/v3/videos',
         dataType: 'json',
         async: false,
         data: {
             part: 'statistics',
-            id: currentId,
+            id: videoIds[currentVideoIndex],
             key: API_KEY,
         },
         success: function (data) {
             let viewCount = parseFloat(data.items[0].statistics.viewCount);
-            var viewCountLocaled = viewCount.toLocaleString('en');
-            logInfo("Video with ID '" + currentId + "' has " + viewCountLocaled + " Views.");
+            logInfo("The current video has " + viewCount.toLocaleString('en') + " views.");
 
             let player1Diff = Math.abs(player1InputVal - viewCount);
             let player2Diff = Math.abs(player2InputVal - viewCount);
 
-            if (player1Diff === 0 || player2Diff === 0) {
-                logInfo("Direct hit!!!");
-                if (player1Diff === 0) {
-                    scorePlayer1(viewCount);
-                } else {
-                    scorePlayer2(viewCount);
-                }
-            } else if (player1Diff < player2Diff) {
-                scorePlayer1(calculatePoints(player1InputVal, viewCount));
-            } else if (player1Diff > player2Diff) {
-                scorePlayer2(calculatePoints(player2InputVal, viewCount));
-            } else {
-                logInfo("It's a draw! No points awarded.");
+            if (player1Diff <= player2Diff) {
+                scorePlayer1(player1InputVal, viewCount);
+            }
+            if (player2Diff <= player1Diff) {
+                scorePlayer2(player2InputVal, viewCount);
             }
 
             $showResult.prop('disabled', true);
-            if ($player1Fish.hasClass('fishActive')) {
-                $player1Fish.removeClass('fishActive');
-                $player1Fish.prop('disabled', true);
-            }
-
-            if ($player2Fish.hasClass('fishActive')) {
-                $player2Fish.removeClass('fishActive');
-                $player2Fish.prop('disabled', true);
-            }
+            $nextVideo.prop('disabled', false);
         }
     });
 }
@@ -264,86 +259,93 @@ function showResult() {
 /**
  * Increases the score of player 1.
  *
- * @param pointsToAdd An integer that is the score to be added. Will be doubled, if FISHCARD is active.
+ *  @param {number} inputVal  The guess of player 1.
+ *  @param {number} viewCount The view count of the current video.
  */
-function scorePlayer1(pointsToAdd) {
+function scorePlayer1(inputVal, viewCount) {
+    var pointsToAdd = calculatePoints(inputVal, viewCount);
+
     if ($player1Fish.hasClass("fishActive")) {
         pointsToAdd *= 2;
+        $player1Fish.removeClass('fishActive');
+        $player1Fish.prop('disabled', true);
     }
 
-    logInfo("Player 1 scores " + pointsToAdd + " point(s)!")
-    player1Score += pointsToAdd
+    logInfo("Player 1 scores " + pointsToAdd + " point(s)!");
+    player1Score += pointsToAdd;
     $player1Score.text(player1Score);
 }
 
 /**
  * Increases the score of player 2.
  *
- * @param pointsToAdd A number that is the score to be added. Will be doubled, if FISHCARD is active.
+ *  @param {number} inputVal  The guess of player 2.
+ *  @param {number} viewCount The view count of the current video.
  */
+function scorePlayer2(inputVal, viewCount) {
+    var pointsToAdd = calculatePoints(inputVal, viewCount);
 
-function scorePlayer2(pointsToAdd) {
     if ($player2Fish.hasClass("fishActive")) {
         pointsToAdd *= 2;
+        $player2Fish.removeClass('fishActive');
+        $player2Fish.prop('disabled', true);
     }
 
-    logInfo("Player 2 scores " + pointsToAdd + " point(s)!")
-    player2Score += pointsToAdd
+    logInfo("Player 2 scores " + pointsToAdd + " point(s)!");
+    player2Score += pointsToAdd;
     $player2Score.text(player2Score);
 }
 
 /**
- * Calculates, how many points the video is worth.
+ * Calculates how many points the current video will grant.
  *
- * @param {number} playerGuess How far the scoring player was away from the actual view count.
- * @param {number} viewCount The view count of the current video.
- * @returns {number} The calculated score.
+ *  @param {number} inputVal  The guess of a player.
+ *  @param {number} viewCount The view count of the current video.
+ *  @return {number} The calculated score.
  */
-function calculatePoints(playerGuess, viewCount) {
-    if (usesClassicRules) {
-        return calculateClassic();
+function calculatePoints(inputVal, viewCount) {
+    var pointsToAdd;
+    if (useReduxRules) {
+        pointsToAdd = calculateReduxValue(inputVal, viewCount);
+    } else if (inputVal === viewCount) {
+        pointsToAdd = viewCount;
+    } else {
+        pointsToAdd = 1;
     }
 
-    return calculateRedux(playerGuess, viewCount);
+    var flatBonus = $flat.val();
+    if (flatBonus !== "") {
+        pointsToAdd += parseInt(flatBonus);
+    }
+    var multiBonus = $multi.val();
+    if (multiBonus !== "") {
+        pointsToAdd *= parseInt(multiBonus);
+    }
+
+    return pointsToAdd;
 }
 
 /**
- * Calculates points based on the classic ruleset.
+ * Calculates the worth of a video based on the accuracy of the player.
  *
- * @return {number} The points to add.
+ *  @param {number} inputVal  The guess of a player.
+ *  @param {number} viewCount The view count of the current video.
+ *  @return {number} The calculated worth.
  */
-function calculateClassic() {
-    var points = 1;
-
-    if ($timecodeBonus.prop("checked")) {
-        points += 1;
-    }
-    if ($germanBonus.prop("checked")) {
-        points += 2;
-    }
-    if ($phoneBonus.prop("checked")) {
-        points *= 2;
+function calculateReduxValue(inputVal, viewCount) {
+    let accuracy;
+    if (inputVal <= viewCount) {
+        accuracy = inputVal / viewCount;
+    } else {
+        accuracy = viewCount / inputVal;
     }
 
-    return points;
-}
-
-/**
- * Calculates points based on the new ruleset.
- *
- * @param {number} playerGuess The guessing distance to the actual view count.
- * @param {number} viewCount The actual view count.
- * @return {number} The points to add.
- */
-function calculateRedux(playerGuess, viewCount) {
-    var guessToViewsRatio = playerGuess / viewCount;
-    if (guessToViewsRatio > 1) {
-        guessToViewsRatio = viewCount / playerGuess;
-    }
-
-    var pointsToAdd = guessToViewsRatio * 10;
+    // multiply the accuracy with the maximum amount of points for the worth of the video
+    var pointsToAdd = accuracy * 10;
+    // make sure the value is a natural number
     pointsToAdd = Math.round(pointsToAdd);
-    pointsToAdd = Math.max(pointsToAdd, 1)
+    // make sure at least one point is awarded
+    pointsToAdd = Math.max(pointsToAdd, 1);
 
     return pointsToAdd;
 }
@@ -352,7 +354,7 @@ function calculateRedux(playerGuess, viewCount) {
  * Toggles, whether the target inside the given event holds the class 'fishActive'.
  * The class 'fishActive' has a custom background color to highlight clicked elements.
  *
- * @param clickEvent A jQuery click event that holds a FISHCARD button as its target.
+ * @param clickEvent A jQuery click event that holds a player's fishcard button as its target.
  */
 function toggleFish(clickEvent) {
     var fishButton = clickEvent.target;
@@ -366,7 +368,7 @@ function toggleFish(clickEvent) {
 /**
  * Embeds the given video ID into the video player iframe.
  *
- * @param videoId A string that is a YouTube video ID.
+ * @param {string} videoId The video ID to embed.
  */
 function embedVideo(videoId) {
     $videoPlayer.attr("src", "https://www.youtube.com/embed/" + videoId);
@@ -376,7 +378,7 @@ function embedVideo(videoId) {
 /**
  * Adds 'toBeLogged' at the top of the info-log.
  *
- * @param toBeLogged A string message that is useful for the players.
+ * @param {string} toBeLogged The string to be displayed in the logger area.
  */
 function logInfo(toBeLogged) {
     $logger.text(toBeLogged + " \n" + $logger.text());
