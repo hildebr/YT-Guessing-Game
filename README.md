@@ -22,12 +22,13 @@ they will double the points he would have normally gotten that round
 + Each video grants between 1 to 10 points based on the accuracy of a player's guess
 + As oppose to the classic mode, exact guesses do not yield additional points
 
-### About This Implementation
-In order to play you need a YouTube playlist containing the videos for which
-the view count shall be guessed. A future release will include the option to fetch
-random YouTube videos to guess as an alternative to using a pre-made playlist.
+### Requirements
 
-Additionally, a YouTube API key is required. This key is used to fetch videos
-and their view counts. Please insert your personal API key at the top of the
-__script.js__ file. If you don't have a key yet, follow [these instructions](https://www.slickremix.com/docs/get-api-key-for-youtube/) to
-generate it.
++ A YouTube API key is required in order to fetch videos and their view counts. If you don't have a key yet, 
+follow [these instructions](https://www.slickremix.com/docs/get-api-key-for-youtube/) to
+generate a new one.
++ If you are not using a preexisting YouTube playlist to guess view counts, an API key for https://randomyoutube.net/ 
+is required to generate random video IDs. Follow the instructions on that page to generate a key.
++ Please insert both API keys at the top of the __script.js__ file.
++ Additionally, you need to enable CORS on your server. If you are simple running this project in chrome,
+add [this extension](https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en) to your browser.

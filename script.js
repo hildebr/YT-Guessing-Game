@@ -1,5 +1,12 @@
-// Set this value to your personal API key in order to make requests to the YouTube API.
-let API_KEY = "";
+/**
+ * This key is required.
+ */
+let YOUTUBE_API = '';
+
+/**
+ * This key is required, if you aren't using a preexisting playlist.
+ */
+let RANDOM_API = '';
 
 /**
  * {boolean} A flag that determines how many points are awarded.
@@ -26,10 +33,11 @@ var player1Score;
  */
 var player2Score;
 
-// jQuery variables
+// jQuery references
 let $newGame = $('#newGame');
 let $videoPlayer = $('#videoPlayer');
 let $nextVideo = $("#nextVideo");
+let $skipVideo = $("#skipVideo");
 let $showResult = $('#showResult');
 let $logger = $('#logger');
 let $flat = $('#flat');
@@ -44,6 +52,7 @@ let $player2Score = $('#player2Score');
 // button click behavior
 $newGame.click(newGamePopup);
 $nextVideo.click(nextVideo);
+$skipVideo.click(nextVideo);
 $showResult.click(showResult);
 $player1Fish.click(toggleFish);
 $player2Fish.click(toggleFish);
@@ -53,14 +62,14 @@ $player2Fish.click(toggleFish);
  * to initialize a new game.
  */
 function newGamePopup() {
-    if (API_KEY === "") {
+    if (YOUTUBE_API === "") {
         alert("<b>Unable to start a new game:</b> No YouTube API key provided. Please follow the instructions in the README file.");
         return;
     }
 
     bootbox.confirm({
-        message: "Playlist ID: <br> \
-                  <input type='text' id='playlistID' size='35' value=''/><br>\
+        message: "Playlist ID (leave this field empty to fetch random videos): <br> \
+                  <input type='text' id='playlistID' size='35'/><br>\
                   Ruleset: <br>\
                   <input type='radio' id='rules' name='rules' value='classic' checked> Classic \
                   <input type='radio' id='rules' name='rules' value='redux'> Redux",
@@ -93,6 +102,7 @@ function initGame(playlistID, isRedux) {
 
     // reset buttons to default state
     $showResult.prop("disabled", false);
+    $skipVideo.prop("disabled", false);
     $flat.prop("disabled", false);
     $multi.prop("disabled", false);
     $player1Fish.prop("disabled", false);
@@ -101,7 +111,11 @@ function initGame(playlistID, isRedux) {
     $player2Input.prop("disabled", false);
 
     logInfo("Initializing a new game...");
-    loadPlaylist(playlistID, null);
+    if (playlistID === '') {
+        loadRandomVideos();
+    } else {
+        loadPlaylist(playlistID, null);
+    }
     // If no videos were loaded, the GET request failed.
     if (videoIds.length === 0) {
         // Error handling should be done in the #loadPlaylist function, so we just return at this point.
@@ -130,7 +144,7 @@ function loadPlaylist(playlistId, pageToken) {
         data: {
             part: 'snippet',
             playlistId: playlistId,
-            key: API_KEY,
+            key: YOUTUBE_API,
             pageToken: pageToken,
             maxResults: 50
         },
@@ -165,11 +179,32 @@ function loadPlaylist(playlistId, pageToken) {
 }
 
 /**
+ * Sends 10 GET requests to the random youtube API to fetch random video IDs and insert them into {@link videoIds}.
+ */
+function loadRandomVideos() {
+    for (let i = 0; i < 10; i++) {
+        $.ajax({
+            method: 'GET',
+            url: 'https://randomyoutube.net/api/getvid',
+            dataType: 'json',
+            async: false,
+            crossDomain: true,
+            data: {
+                api_token: RANDOM_API,
+            },
+            success: function (data) {
+                videoIds.push(data['vid']);
+            }
+        });
+    }
+}
+
+/**
  * Loads the next video into the embedded player.
  */
 function nextVideo() {
     if (currentVideoIndex === videoIds.length - 1) {
-        alert("You've reached the end of the playlist. Thanks for playing!");
+        alert("You've reached the last video. Thanks for playing!");
         return;
     }
 
@@ -223,7 +258,7 @@ function showResult() {
         data: {
             part: 'statistics',
             id: videoIds[currentVideoIndex],
-            key: API_KEY,
+            key: YOUTUBE_API,
         },
         success: function (data) {
             let viewCount = parseFloat(data.items[0].statistics.viewCount);
