@@ -30,5 +30,5 @@ generate a new one.
 + If you are not using a preexisting YouTube playlist to guess view counts, an API key for https://randomyoutube.net/ 
 is required to generate random video IDs. Follow the instructions on that page to generate a key.
 + Please insert both API keys at the top of the __script.js__ file.
-+ Additionally, you need to enable CORS on your server. If you are simple running this project in chrome,
++ Additionally, you need to enable CORS on your server. If you are simply running this project in chrome,
 add [this extension](https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en) to your browser.
