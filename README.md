@@ -1,5 +1,9 @@
 ## YouTube Guessing Game (Verflixxte Klixx)
 
+##### Disclaimer
+The UI of this game uses hard-coded sizes that look best in 1080p resolution. If you run any other resolution,
+feel free to edit __index.html__ for a better experience.
+
 ### Basic rules
 + Two players guess the view count of YouTube videos
 + The player with the more accurate guess will score points
@@ -29,6 +33,6 @@ follow [these instructions](https://www.slickremix.com/docs/get-api-key-for-yout
 generate a new one.
 + If you are not using a preexisting YouTube playlist to guess view counts, an API key for https://randomyoutube.net/ 
 is required to generate random video IDs. Follow the instructions on that page to generate a key.
-+ Please insert both API keys at the top of the __script.js__ file.
-+ Additionally, you need to enable CORS on your server. If you are simply running this project in chrome,
++ Please insert API keys into the appropriate variables at the top of the __script.js__ file.
++ Additionally, you need to enable CORS on your server in order to run certain API requests. If you are simply running this project in Chrome,
 add [this extension](https://chrome.google.com/webstore/detail/allow-control-allow-origi/nlfbmbojpeacfghkpbjhddihlkkiljbi/related?hl=en) to your browser.
