@@ -9,9 +9,9 @@ let YOUTUBE_API = '';
 let RANDOM_API = '';
 
 /**
- * {boolean} A flag that determines how many points are awarded.
+ * {string} Holds the name of the chosen ruleset. It will be used to calculate points.
  */
-var useReduxRules;
+var ruleSet;
 
 /**
  * {array} Holds YouTube video IDs. They will be used to load their corresponding videos to guess their view counts.
@@ -58,38 +58,125 @@ $player1Fish.click(toggleFish);
 $player2Fish.click(toggleFish);
 
 /**
- * Creates a popup for the user to set parameters for a new game. These parameters will be given to {@link initGame}
- * to initialize a new game.
+ * Creates a popup for the user to set basic parameters for a new game.
  */
 function newGamePopup() {
     if (YOUTUBE_API === "") {
-        alert("<b>Unable to start a new game:</b> No YouTube API key provided. Please follow the instructions in the README file.");
+        alertUser("<b>Unable to start a new game:</b> No YouTube API key provided. Please follow the instructions in the README file.");
         return;
     }
 
     bootbox.confirm({
-        message: "Playlist ID (leave this field empty to fetch random videos): <br> \
-                  <input type='text' id='playlistID' size='35'/><br>\
-                  Ruleset: <br>\
-                  <input type='radio' id='rules' name='rules' value='classic' checked> Classic \
-                  <input type='radio' id='rules' name='rules' value='redux'> Redux",
+        message: "Video source:<br>\
+                  <input type='radio' name='videosrc' value='random' checked> Randomly Fetched Videos \
+                  <input type='radio' name='videosrc' value='playlist'> Playlist <br>\
+                  Ruleset:<br>\
+                  <input type='radio' name='rules' value='classic' checked> Classic \
+                  <input type='radio' name='rules' value='redux'> Redux",
         callback: function (okPressed) {
-            if (okPressed) {
-                initGame($('#playlistID').val(), $('#rules').val() === 'redux');
+            if (!okPressed) {
+                return;
+            }
+
+            ruleSet = $('input[name=rules]:checked').val();
+
+            let chosenVideosrc = $('input[name=videosrc]:checked').val();
+            switch (chosenVideosrc) {
+                case 'random' :
+                    randomGenInfoPopup();
+                    break;
+                case 'playlist' :
+                    playlistInfoPopup();
+                    break;
+                default:
+                    alertUser("No behavior definition for video source type: " + chosenVideosrc);
             }
         }
     });
 }
 
 /**
- * Resets all variables and starts a new game with the given parameters.
- *
- * @param {string} playlistID Specifies which playlist will be loaded.
- * @param {boolean} isRedux   Specifies, whether the redux game mode was chosen.
+ * Creates a popup for the user to set the amount of random videos to load.
  */
-function initGame(playlistID, isRedux) {
-    // reset dynamic variables
-    $logger.text('');
+function randomGenInfoPopup() {
+    bootbox.confirm({
+        message: "Choose the amount of random videos to load: <br>\
+                  <input type='text' id='randomCount'>",
+        callback: function (okPressed) {
+            if (!okPressed) {
+                return;
+            }
+
+            let chosenVideCount = parseInt($('#randomCount').val());
+            if (!Number.isInteger(chosenVideCount)) {
+                alertUser("Please provide a valid number.");
+                return;
+            }
+
+            if (chosenVideCount <= 0) {
+                alertUser("Please provide a positive number.");
+                return;
+            }
+
+            if (chosenVideCount > 100) {
+                alertUser("I've limited the amount of random videos to 100 per game. This is a safety precaution" +
+                    "in order to not use up the available API calls. Feel free to remove this limit in the script.js" +
+                    "file at your own discretion.");
+                return;
+            }
+
+            resetValues();
+            logInfo("Initializing a new game with random videos...");
+
+            loadRandomVideos(chosenVideCount);
+            if (videoIds.length === 0) {
+                alertUser("Initialization failed: Unable to generate random videos. The API might be unavailable.");
+                return;
+            }
+
+            logInfo("Game ready with " + videoIds.length + " videos.");
+            embedVideo(videoIds[0]);
+        }
+    });
+}
+
+/**
+ * Creates a popup for the user to set the playlist ID to load videos from.
+ */
+function playlistInfoPopup() {
+    bootbox.confirm({
+        message: "Playlist ID: <br>\
+                  <input type='text' id='playlistID'>",
+        callback: function (okPressed) {
+            if (!okPressed) {
+                return;
+            }
+
+            let playlistID = $('#playlistID').val();
+            if (playlistID === null || playlistID === '') {
+                alertUser("No playlist ID was given.");
+                return;
+            }
+
+            resetValues();
+            logInfo("Initializing a new game with videos of the given playlist...");
+
+            loadPlaylist(playlistID, null);
+            if (videoIds.length === 0) {
+                // Error handling should be done in the #loadPlaylist function, so we just return at this point.
+                return;
+            }
+
+            logInfo("Game ready with " + videoIds.length + " videos.");
+            embedVideo(videoIds[0]);
+        }
+    });
+}
+
+/**
+ * Resets UI and dynamic variables of the game.
+ */
+function resetValues() {
     videoIds = [];
     currentVideoIndex = 0;
     player1Score = 0;
@@ -98,9 +185,8 @@ function initGame(playlistID, isRedux) {
     $player2Score.text(0);
     $player1Input.val('');
     $player2Input.val('');
-    useReduxRules = isRedux;
+    $logger.text('');
 
-    // reset buttons to default state
     $showResult.prop("disabled", false);
     $skipVideo.prop("disabled", false);
     $flat.prop("disabled", false);
@@ -109,21 +195,35 @@ function initGame(playlistID, isRedux) {
     $player2Fish.prop("disabled", false);
     $player1Input.prop("disabled", false);
     $player2Input.prop("disabled", false);
+}
 
-    logInfo("Initializing a new game...");
-    if (playlistID === '') {
-        loadRandomVideos();
-    } else {
-        loadPlaylist(playlistID, null);
+/**
+ * Sends GET requests to the random youtube API to fetch video IDs and insert them into {@link videoIds}.
+ *
+ * @param {number} videoCount The amount of GET requests to send.
+ */
+function loadRandomVideos(videoCount) {
+    for (let i = 0; i < videoCount; i++) {
+        $.ajax({
+            method: 'GET',
+            url: 'https://randomyoutube.net/api/getvid',
+            dataType: 'json',
+            async: false,
+            crossDomain: true,
+            data: {
+                api_token: RANDOM_API,
+            },
+            success: function (data) {
+                let videoID = data['vid'];
+                if (typeof videoID === 'undefined') {
+                    logInfo("The random video API returned an odd value. This messages corresponds to " +
+                        "one invalid video added to the list of videos to guess. If too many of these messages " +
+                        "show up, you may want to reload the page and try again.");
+                }
+                videoIds.push(videoID);
+            }
+        });
     }
-    // If no videos were loaded, the GET request failed.
-    if (videoIds.length === 0) {
-        // Error handling should be done in the #loadPlaylist function, so we just return at this point.
-        return;
-    }
-
-    logInfo("Playlist found! Game ready with " + videoIds.length + " available videos.");
-    embedVideo(videoIds[0]);
 }
 
 /**
@@ -173,30 +273,9 @@ function loadPlaylist(playlistId, pageToken) {
                     errorMessage += "I haven't encountered this code in my testing, please submit a bug report.";
             }
 
-            alert(errorMessage);
+            alertUser(errorMessage);
         }
     });
-}
-
-/**
- * Sends 10 GET requests to the random youtube API to fetch random video IDs and insert them into {@link videoIds}.
- */
-function loadRandomVideos() {
-    for (let i = 0; i < 10; i++) {
-        $.ajax({
-            method: 'GET',
-            url: 'https://randomyoutube.net/api/getvid',
-            dataType: 'json',
-            async: false,
-            crossDomain: true,
-            data: {
-                api_token: RANDOM_API,
-            },
-            success: function (data) {
-                videoIds.push(data['vid']);
-            }
-        });
-    }
 }
 
 /**
@@ -204,7 +283,7 @@ function loadRandomVideos() {
  */
 function nextVideo() {
     if (currentVideoIndex === videoIds.length - 1) {
-        alert("You've reached the last video. Thanks for playing!");
+        alertUser("You've reached the last video. Thanks for playing!");
         return;
     }
 
@@ -225,29 +304,29 @@ function nextVideo() {
 function showResult() {
     var flatValue = $flat.val();
     if (flatValue !== "" && isNaN(parseInt(flatValue))) {
-        alert("The flat bonus input field does not contain a valid number.");
+        alertUser("The flat bonus input field does not contain a valid number.");
         return;
     }
     var multiValue = $multi.val();
     if (multiValue !== "" && isNaN(parseInt(multiValue))) {
-        alert("The multiplier input field does not contain a valid number.");
+        alertUser("The multiplier input field does not contain a valid number.");
         return;
     }
 
     let player1InputVal = parseInt($player1Input.val());
     if (isNaN(player1InputVal)) {
-        alert("Guess of Player 1 is not a valid number.");
+        alertUser("Guess of Player 1 is not a valid number.");
         return;
     }
 
     let player2InputVal = parseInt($player2Input.val());
     if (isNaN(player2InputVal)) {
-        alert("Guess of Player 2 is not a valid number.");
+        alertUser("Guess of Player 2 is not a valid number.");
         return;
     }
 
     if (player1InputVal === player2InputVal) {
-        alert("Players mustn't make the same guess!");
+        alertUser("Players mustn't make the same guess!");
         return;
     }
 
@@ -329,12 +408,20 @@ function scorePlayer2(inputVal, viewCount) {
  */
 function calculatePoints(inputVal, viewCount) {
     var pointsToAdd;
-    if (useReduxRules) {
-        pointsToAdd = calculateReduxValue(inputVal, viewCount);
-    } else if (inputVal === viewCount) {
-        pointsToAdd = viewCount;
-    } else {
-        pointsToAdd = 1;
+    switch (ruleSet) {
+        case 'classic' :
+            if (inputVal === viewCount) {
+                pointsToAdd = viewCount;
+            } else {
+                pointsToAdd = 1;
+            }
+            break;
+        case 'redux' :
+            pointsToAdd = calculateReduxValue(inputVal, viewCount);
+            break;
+        default :
+            alertUser('Cannot calculate points: Ruleset ' + ruleSet + 'is unrecognized.');
+            return 0;
     }
 
     var flatBonus = $flat.val();
@@ -413,6 +500,6 @@ function logInfo(toBeLogged) {
  *
  * @param {string} message The message to display as an alert.
  */
-function alert(message) {
+function alertUser(message) {
     bootbox.alert(message);
 }
