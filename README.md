@@ -1,4 +1,4 @@
-## YouTube Guessing Game (Verflixxte Klixx)
+## YouTube Guessing Game (Abandoned)
 
 ##### Disclaimer
 The UI of this game uses hard-coded sizes that look best in 1080p resolution. If you run any other resolution,
